@@ -1,0 +1,172 @@
+
+
+
+{% extends "base.html" %}
+
+{% block title %}AI Chat{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="card shadow chat-card">
+
+        <div class="card-header bg-primary text-white">
+            🤖 AI Emotional Assistant
+        </div>
+
+        <div class="card-body chat-box" id="chatBox">
+
+            <div class="ai-msg">
+                Hello {{ session.get('user_name') }}! 👋  
+                I'm here to listen. How are you feeling today?
+            </div>
+
+        </div>
+
+        <div class="card-footer chat-input">
+
+            <div class="input-group">
+                <input type="text"
+                       id="userMessage"
+                       class="form-control"
+                       placeholder="Type your message..."
+                       autocomplete="off">
+
+                <button class="btn btn-primary" onclick="sendMessage()">
+                    Send
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+
+/* Chat container */
+
+.chat-card{
+max-width:700px;
+margin:auto;
+border-radius:15px;
+}
+
+/* Chat messages area */
+
+.chat-box{
+height:400px;
+overflow-y:auto;
+background:#f9f9f9;
+padding:15px;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+/* User message */
+
+.user-msg{
+align-self:flex-end;
+background:#5E60CE;
+color:white;
+padding:10px 14px;
+border-radius:15px 15px 0 15px;
+max-width:70%;
+}
+
+/* AI message */
+
+.ai-msg{
+align-self:flex-start;
+background:#e9ecef;
+padding:10px 14px;
+border-radius:15px 15px 15px 0;
+max-width:70%;
+}
+
+/* Dark mode support */
+
+body.dark-mode .chat-box{
+background:#2c2c3e;
+}
+
+body.dark-mode .ai-msg{
+background:#3b3b52;
+color:white;
+}
+
+</style>
+
+<script>
+
+/* Send message */
+
+function sendMessage(){
+
+const input = document.getElementById("userMessage");
+const chatBox = document.getElementById("chatBox");
+
+const message = input.value.trim();
+
+if(message === "") return;
+
+/* Show user message */
+
+chatBox.innerHTML += `
+<div class="user-msg">${message}</div>
+`;
+
+/* AI typing animation */
+
+const typing = document.createElement("div");
+typing.className = "ai-msg";
+typing.innerHTML = "Typing...";
+chatBox.appendChild(typing);
+
+chatBox.scrollTop = chatBox.scrollHeight;
+
+/* Send to backend */
+
+fetch("/chatbot",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({message:message})
+})
+.then(response=>response.json())
+.then(data=>{
+
+typing.remove();
+
+chatBox.innerHTML += `
+<div class="ai-msg">${data.reply}</div>
+`;
+
+chatBox.scrollTop = chatBox.scrollHeight;
+
+})
+.catch(error=>{
+typing.innerHTML="Error connecting to AI.";
+});
+
+input.value="";
+
+}
+
+/* Press Enter to send */
+
+document.getElementById("userMessage").addEventListener("keypress",function(event){
+
+if(event.key==="Enter"){
+sendMessage();
+}
+
+});
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+
+{% block content %}
+
+<div class="card p-4 mx-auto" style="max-width:400px;">
+    <h3 class="text-center mb-3">Create Account</h3>
+
+    <form method="POST">
+        <input type="text" name="name" class="form-control mb-3" placeholder="Full Name" required>
+        <input type="email" name="email" class="form-control mb-3" placeholder="Email" required>
+        <input type="password" name="password" class="form-control mb-3" placeholder="Password" required>
+        <button class="btn btn-primary w-100">Register</button>
+    </form>
+
+    <div class="text-center mt-3">
+        <a href="{{ url_for('login') }}">Already have account?</a>
+    </div>
+</div>
+
+{% endblock %}
