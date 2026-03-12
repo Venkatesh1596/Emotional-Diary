@@ -3,7 +3,6 @@
 
 {% block content %}
 
-<div class="container-fluid mt-4">
 
 <!-- Loader -->
 <div id="loader" class="text-center" style="padding:100px 0;">
@@ -62,7 +61,18 @@
 </div>
 
 </div>
+<div class="card p-4 mt-4">
+<h5>🧠 Top 3 Words From Your Diary</h5>
 
+<ul>
+{% for word, count in top_words %}
+<li><b>{{ word }}</b> ({{ count }})</li>
+{% endfor %}
+</ul>
+
+</div>
+
+<br>
 
 <!-- HEALTH INDEX -->
 <div class="card p-4 mb-4">
@@ -107,6 +117,7 @@
 </div>
 
 
+
 <div class="card shadow-sm border-0 p-4
 {% if risk_alert and 'High' in risk_alert %}
 border-danger
@@ -130,6 +141,22 @@ border-success
 
 </div>
 
+<div class="card p-4 mt-4">
+
+<h5>📈 Mood Trend</h5>
+
+<p>{{ trend_message }}</p>
+
+<div class="progress">
+<div class="progress-bar bg-success"
+style="width: {{ health_index }}%">
+{{ health_index }}%
+</div>
+</div>
+
+</div>
+
+<br>
 
 <!-- CHARTS -->
 <div class="row g-3 mb-4">
@@ -176,19 +203,23 @@ border-success
 </div>
 
 
-<!-- BADGES -->
-<div class="card shadow-sm border-0 p-4 mb-4">
+<div class="card p-4 mt-4">
 
-<h6>🏆 Achievements</h6>
+<h5>🏆 Achievements</h5>
+
+<div class="d-flex flex-wrap gap-2 mt-3">
 
 {% for badge in badges %}
-<span class="badge bg-primary me-2 mb-2 p-2">
-{{ badge }}
-</span>
+
+<span class="badge bg-primary p-2">{{ badge }}</span>
+
 {% endfor %}
 
 </div>
 
+</div>
+
+<br>
 
 <!-- TIMELINE -->
 <div class="card p-4 mb-4">
@@ -201,6 +232,19 @@ border-success
 
 </div>
 
+<div class="card shadow-sm border-0 p-4 mt-4">
+
+<h5 class="mb-3">📅 Emotion Calendar</h5>
+
+<p class="text-muted small">
+View your emotions recorded throughout the month.
+</p>
+
+<div id="calendar"></div>
+
+</div>
+
+<br>
 
 <!-- DOWNLOAD -->
 <div class="text-center mb-5">
@@ -216,6 +260,41 @@ border-success
 </div>
 
 </div>
+
+
+<style>
+
+#calendar{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 5px 20px rgba(0,0,0,0.08);
+}
+
+.fc-toolbar-title{
+    font-size:22px;
+    font-weight:600;
+}
+
+.fc-button{
+    background:#5E60CE !important;
+    border:none !important;
+    border-radius:8px !important;
+}
+
+.fc-button:hover{
+    background:#4a4cd3 !important;
+}
+
+.fc-daygrid-day-number{
+    font-weight:600;
+}
+
+.fc-daygrid-event{
+    font-size:12px;
+}
+
+</style>
 
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -361,5 +440,61 @@ document.getElementById("dashboardContent").style.display="block";
 });
 
 </script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    var calendarEl = document.getElementById('calendar');
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+
+        initialView: 'dayGridMonth',
+        height: 520,
+
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: ''
+        },
+
+        events: "/emotion-data",
+
+        eventDidMount: function(info) {
+
+            let emotion = info.event.title;
+
+            const colors = {
+                "Happy": "#4CAF50",
+                "Sad": "#2196F3",
+                "Angry": "#F44336",
+                "Fear": "#9C27B0",
+                "Neutral": "#FFC107"
+            };
+
+            const emojis = {
+                "Happy": "😊",
+                "Sad": "😔",
+                "Angry": "😠",
+                "Fear": "😟",
+                "Neutral": "😐"
+            };
+
+            info.el.style.backgroundColor = colors[emotion] || "#888";
+            info.el.style.border = "none";
+            info.el.style.borderRadius = "8px";
+            info.el.style.padding = "3px";
+
+            info.el.innerHTML = emojis[emotion] + " " + emotion;
+        }
+
+    });
+
+    calendar.render();
+
+});
+</script>
+
+
 
 {% endblock %}

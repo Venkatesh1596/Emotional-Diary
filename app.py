@@ -1,7 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, request, jsonify
+from flask import Flask, render_template, redirect, url_for, session, flash, send_file, request, jsonify
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -10,6 +10,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import io
 import base64
+
 
 # PDF imports
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
@@ -480,18 +481,35 @@ def dashboard():
     trend_message = "Not enough data to determine trend."
 
     cursor.execute("""
-    SELECT emotion, DATE(created_at)
-    FROM diary
-    WHERE user_id=%s
-    ORDER BY created_at DESC
-    LIMIT 14
+SELECT emotion
+FROM diary
+WHERE user_id=%s
+ORDER BY created_at DESC
+LIMIT 14
     """, (session['user_id'],))
 
     recent_entries = cursor.fetchall()
 
-    if recent_entries:
-        from collections import Counter
+    if len(recent_entries) >= 7:
 
+        last_7 = [row[0] for row in recent_entries[:7]]
+        prev_7 = [row[0] for row in recent_entries[7:14]]
+
+        def negative_ratio(emotions):
+            if not emotions:
+                return 0
+            negative = emotions.count("Sad") + emotions.count("Angry")
+            return negative / len(emotions)
+
+        last_ratio = negative_ratio(last_7)
+        prev_ratio = negative_ratio(prev_7)
+
+        if last_ratio < prev_ratio:
+            trend_message = "📈 Your mood trend is Improving."
+        elif last_ratio > prev_ratio:
+            trend_message = "📉 Your mood trend is Declining."
+        else:
+            trend_message = "➖ Your mood is Stable."
 
     # ---------- STREAK CALCULATION ----------
     from datetime import datetime, timedelta
@@ -506,8 +524,8 @@ def dashboard():
     streak_dates = cursor.fetchall()
 
     streak = 0
-    if dates:
-        unique_dates = sorted(set([row[0] for row in dates]), reverse=True)
+    if streak_dates:
+        unique_dates = sorted(set([row[0] for row in streak_dates]), reverse=True)
 
         today = datetime.today().date()
         current_day = today
@@ -698,6 +716,14 @@ SELECT emotion FROM diary WHERE user_id=%s
 
     entries = cursor.fetchall()
     text = " ".join([row[0] for row in entries])
+    
+    
+    from collections import Counter
+
+    words = re.findall(r'\b\w+\b', text.lower())
+    filtered = [w for w in words if w not in stop_words]
+
+    top_words = Counter(filtered).most_common(3)
 
     wordcloud_img = None
 
@@ -740,6 +766,7 @@ SELECT emotion FROM diary WHERE user_id=%s
     personalized_tip=personalized_tip,
     health_index=health_index,
     timeline_dates=timeline_dates,
+    top_words=top_words,
     happy_counts=happy_counts,
     sad_counts=sad_counts,
     angry_counts=angry_counts,
@@ -755,10 +782,8 @@ SELECT emotion FROM diary WHERE user_id=%s
 
 # ---------- AI CHATBOT ----------
 from flask import jsonify
-import openai
 import os
 
-openai.api_key = os.getenv("OPENAI_API_KEY")  # replace with your key
 
 @app.route('/chat', methods=['GET'])
 @login_required
@@ -767,39 +792,35 @@ def chat_page():
     return render_template("chat.html", chat_history=chat_history)
 
 
-@app.route('/chatbot', methods=['POST'])
-@login_required
+@app.route("/chatbot", methods=["POST"])
 def chatbot():
+
     data = request.get_json()
-    message = data.get("message")
+    user_message = data.get("message", "")
 
-    if not message:
-        return jsonify({"reply": "Please type a message."})
+    # Detect emotion using your ML model
+    emotion, confidence, intensity = detect_emotion(user_message)
 
-    # Detect emotion
-    emotion, confidence, intensity = detect_emotion(message)
+    # Emotion based replies
+    replies = {
+        "Happy": "😊 I'm glad you're feeling happy! Keep enjoying the moment.",
+        "Sad": "😔 I'm sorry you're feeling sad. Writing your thoughts can help release emotions.",
+        "Angry": "😠 It seems you're feeling angry. Try taking deep breaths or a short walk.",
+        "Fear": "😟 Feeling worried is normal. Try to focus on what you can control.",
+        "Neutral": "🙂 Thanks for sharing. Tell me more about how your day is going.",
+        "Positive": "🌟 That's great to hear! Keep focusing on the positive things."
+    }
 
-    # Generate suggestion
-    suggestion = generate_suggestion(emotion)
+    reply = replies.get(emotion, "I'm here to listen. Tell me more about how you're feeling.")
 
-    bot_reply = f"""
-Emotion detected: {emotion} 😊
-Confidence: {confidence}%
+    return jsonify({
+        "reply": reply,
+        "emotion": emotion,
+        "confidence": confidence
+    })
 
-Suggestion:
-{suggestion}
-"""
 
-    # Save chat history
-    if "chat_history" not in session:
-        session["chat_history"] = []
 
-    session["chat_history"].append({"role": "user", "content": message})
-    session["chat_history"].append({"role": "bot", "content": bot_reply})
-
-    session.modified = True
-
-    return jsonify({"reply": bot_reply})
 # ---------- HISTORY ----------
 @app.route('/history')
 @login_required
@@ -823,12 +844,14 @@ def history():
 @app.route('/download_report')
 @login_required
 def download_report():
+
     db = get_db()
     cursor = db.cursor()
 
     current_month = datetime.now().month
     current_year = datetime.now().year
 
+    # Emotion distribution
     cursor.execute("""
         SELECT emotion, COUNT(*)
         FROM diary
@@ -836,36 +859,99 @@ def download_report():
         GROUP BY emotion
     """, (session['user_id'], current_month, current_year))
 
-    data = cursor.fetchall()
+    emotion_data = cursor.fetchall()
+
+    # Total entries
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM diary
+        WHERE user_id=%s AND MONTH(created_at)=%s AND YEAR(created_at)=%s
+    """, (session['user_id'], current_month, current_year))
+
+    total_entries = cursor.fetchone()[0]
+
+    # Get all emotions for health score
+    cursor.execute("""
+        SELECT emotion
+        FROM diary
+        WHERE user_id=%s AND MONTH(created_at)=%s AND YEAR(created_at)=%s
+    """, (session['user_id'], current_month, current_year))
+
+    emotion_rows = cursor.fetchall()
+    emotions = [row[0] for row in emotion_rows]
+
+    health_score = calculate_health_score(emotions)
+
+    # Dominant emotion
+    dominant_emotion = "None"
+    if emotion_data:
+        dominant_emotion = max(emotion_data, key=lambda x: x[1])[0]
+
     cursor.close()
     db.close()
 
+    # ---------- PDF GENERATION ----------
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
-    elements = []
+
     styles = getSampleStyleSheet()
+    elements = []
 
-    elements.append(Paragraph("Monthly Emotion Report", styles['Title']))
-    elements.append(Spacer(1, 0.5 * inch))
+    elements.append(Paragraph("Monthly Mental Wellness Report", styles['Title']))
+    elements.append(Spacer(1, 20))
 
-    if data:
+    elements.append(Paragraph(f"User: {session['user_name']}", styles['Normal']))
+    elements.append(Paragraph(f"Month: {datetime.now().strftime('%B %Y')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+
+    elements.append(Paragraph(f"Total Diary Entries: {total_entries}", styles['Heading3']))
+    elements.append(Paragraph(f"Dominant Emotion: {dominant_emotion}", styles['Heading3']))
+    elements.append(Paragraph(f"Mental Health Score: {health_score}/100", styles['Heading3']))
+
+    elements.append(Spacer(1, 20))
+
+    # Emotion Table
+    if emotion_data:
+
         table_data = [["Emotion", "Count"]]
-        for row in data:
+
+        for row in emotion_data:
             table_data.append([row[0], str(row[1])])
 
         table = Table(table_data)
+
+        elements.append(Paragraph("Emotion Distribution", styles['Heading2']))
+        elements.append(Spacer(1,10))
         elements.append(table)
+
     else:
-        elements.append(Paragraph("No entries this month.", styles['Normal']))
+        elements.append(Paragraph("No diary entries this month.", styles['Normal']))
+
+    elements.append(Spacer(1, 20))
+
+    # AI Wellness Message
+    suggestion = "Continue journaling regularly to improve emotional awareness."
+
+    if dominant_emotion == "Happy":
+        suggestion = "Great emotional balance this month. Keep maintaining positive routines."
+    elif dominant_emotion == "Sad":
+        suggestion = "Consider relaxation activities or talking with supportive people."
+    elif dominant_emotion == "Angry":
+        suggestion = "Practice breathing exercises and stress management techniques."
+
+    elements.append(Paragraph("AI Wellness Insight", styles['Heading2']))
+    elements.append(Paragraph(suggestion, styles['Normal']))
 
     doc.build(elements)
+
     buffer.seek(0)
 
-    return send_file(buffer,
-                     as_attachment=True,
-                     download_name="Monthly_Report.pdf",
-                     mimetype='application/pdf')
-
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="Mental_Wellness_Report.pdf",
+        mimetype='application/pdf'
+    )
 
 # ---------- LOGOUT ----------
 @app.route('/logout')
@@ -874,6 +960,33 @@ def logout():
     flash("Logged Out Successfully!", "info")
     return redirect(url_for('login'))
 
+@app.route("/emotion-data")
+@login_required
+def emotion_data():
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT DATE(created_at) as entry_date, emotion
+        FROM diary
+        WHERE user_id = %s
+    """, (session['user_id'],))
+
+    rows = cursor.fetchall()
+
+    events = []
+
+    for row in rows:
+        events.append({
+            "title": row["emotion"],
+            "start": str(row["entry_date"])
+        })
+
+    cursor.close()
+    db.close()
+
+    return jsonify(events)
 
 if __name__ == '__main__':
     app.run(debug=True)

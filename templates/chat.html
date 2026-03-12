@@ -1,134 +1,76 @@
-
-
-
 {% extends "base.html" %}
-
 {% block title %}AI Chat{% endblock %}
 
 {% block content %}
 
-<div class="container">
+<div class="card p-4">
 
-    <div class="card shadow chat-card">
+<h4>🤖 AI Emotional Assistant</h4>
 
-        <div class="card-header bg-primary text-white">
-            🤖 AI Emotional Assistant
-        </div>
+<!-- CHAT BOX -->
+<div id="chatbox"
+style="height:400px; overflow-y:auto; border:1px solid #ddd; padding:15px; border-radius:10px; background:#f8f9fa;">
 
-        <div class="card-body chat-box" id="chatBox">
+{% for chat in chat_history %}
 
-            <div class="ai-msg">
-                Hello {{ session.get('user_name') }}! 👋  
-                I'm here to listen. How are you feeling today?
-            </div>
+<div class="text-end mb-2">
+<span class="badge bg-primary">You</span>
+<div class="p-2 bg-primary text-white rounded">
+{{ chat.user }}
+</div>
+</div>
 
-        </div>
+<div class="text-start mb-3">
+<span class="badge bg-secondary">AI</span>
+<div class="p-2 bg-light rounded border">
+{{ chat.bot }}
+</div>
+</div>
 
-        <div class="card-footer chat-input">
+{% endfor %}
 
-            <div class="input-group">
-                <input type="text"
-                       id="userMessage"
-                       class="form-control"
-                       placeholder="Type your message..."
-                       autocomplete="off">
+</div>  <!-- ✅ CLOSE CHATBOX HERE -->
 
-                <button class="btn btn-primary" onclick="sendMessage()">
-                    Send
-                </button>
-            </div>
+<!-- INPUT AREA (NOW BELOW CHATBOX) -->
+<div class="input-group mt-3">
 
-        </div>
+<input type="text"
+id="messageInput"
+class="form-control"
+placeholder="Type or speak your message...">
 
-    </div>
+<button class="btn btn-success" onclick="startVoice()">🎤 Speak</button>
+
+<button class="btn btn-primary" onclick="sendMessage()">Send</button>
 
 </div>
 
-<style>
+<p id="typing" class="text-muted mt-2" style="display:none;">
+AI is typing...
+</p>
 
-/* Chat container */
+</div>
 
-.chat-card{
-max-width:700px;
-margin:auto;
-border-radius:15px;
-}
-
-/* Chat messages area */
-
-.chat-box{
-height:400px;
-overflow-y:auto;
-background:#f9f9f9;
-padding:15px;
-display:flex;
-flex-direction:column;
-gap:10px;
-}
-
-/* User message */
-
-.user-msg{
-align-self:flex-end;
-background:#5E60CE;
-color:white;
-padding:10px 14px;
-border-radius:15px 15px 0 15px;
-max-width:70%;
-}
-
-/* AI message */
-
-.ai-msg{
-align-self:flex-start;
-background:#e9ecef;
-padding:10px 14px;
-border-radius:15px 15px 15px 0;
-max-width:70%;
-}
-
-/* Dark mode support */
-
-body.dark-mode .chat-box{
-background:#2c2c3e;
-}
-
-body.dark-mode .ai-msg{
-background:#3b3b52;
-color:white;
-}
-
-</style>
 
 <script>
 
-/* Send message */
-
 function sendMessage(){
 
-const input = document.getElementById("userMessage");
-const chatBox = document.getElementById("chatBox");
-
-const message = input.value.trim();
+let input = document.getElementById("messageInput");
+let message = input.value.trim();
 
 if(message === "") return;
 
-/* Show user message */
+let chatbox = document.getElementById("chatbox");
 
-chatBox.innerHTML += `
-<div class="user-msg">${message}</div>
+chatbox.innerHTML += `
+<div class="text-end mb-2">
+<span class="badge bg-primary">You</span>
+<div class="p-2 bg-primary text-white rounded">${message}</div>
+</div>
 `;
 
-/* AI typing animation */
-
-const typing = document.createElement("div");
-typing.className = "ai-msg";
-typing.innerHTML = "Typing...";
-chatBox.appendChild(typing);
-
-chatBox.scrollTop = chatBox.scrollHeight;
-
-/* Send to backend */
+document.getElementById("typing").style.display = "block";
 
 fetch("/chatbot",{
 method:"POST",
@@ -137,36 +79,68 @@ headers:{
 },
 body:JSON.stringify({message:message})
 })
-.then(response=>response.json())
+.then(res=>res.json())
 .then(data=>{
 
-typing.remove();
+document.getElementById("typing").style.display = "none";
 
-chatBox.innerHTML += `
-<div class="ai-msg">${data.reply}</div>
+chatbox.innerHTML += `
+<div class="text-start mb-3">
+<span class="badge bg-secondary">AI</span>
+<div class="p-2 bg-light border rounded">${data.reply}</div>
+</div>
 `;
 
-chatBox.scrollTop = chatBox.scrollHeight;
+chatbox.scrollTop = chatbox.scrollHeight;
 
-})
-.catch(error=>{
-typing.innerHTML="Error connecting to AI.";
+// 🔊 AI Voice Reply
+let speech = new SpeechSynthesisUtterance(data.reply);
+speech.lang = "en-US";
+speech.rate = 1;
+speech.pitch = 1;
+
+speechSynthesis.speak(speech);
+
 });
 
 input.value="";
-
 }
 
-/* Press Enter to send */
-
-document.getElementById("userMessage").addEventListener("keypress",function(event){
-
-if(event.key==="Enter"){
+document.getElementById("messageInput")
+.addEventListener("keypress", function(e){
+if(e.key === "Enter"){
 sendMessage();
 }
-
 });
 
+</script>
+
+
+<script>
+function startVoice(){
+
+if(!('webkitSpeechRecognition' in window)){
+alert("Voice recognition not supported in this browser");
+return;
+}
+
+const recognition = new webkitSpeechRecognition();
+
+recognition.lang = "en-US";
+recognition.interimResults = false;
+recognition.maxAlternatives = 1;
+
+recognition.onresult = function(event){
+
+let text = event.results[0][0].transcript;
+
+document.getElementById("messageInput").value = text;
+
+};
+
+recognition.start();
+
+}
 </script>
 
 {% endblock %}
