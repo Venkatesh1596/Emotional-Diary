@@ -1,0 +1,8 @@
+{
+"name": "Emotional Diary",
+"short_name": "Diary",
+"start_url": "/",
+"display": "standalone",
+"background_color": "#5E60CE",
+"theme_color": "#5E60CE"
+}

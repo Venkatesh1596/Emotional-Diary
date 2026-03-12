@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+
+<div class="container mt-5">
+    <div class="card shadow-sm border-0 p-4">
+        <h4 class="mb-4">👤 User Profile</h4>
+
+        <p><strong>Name:</strong> {{ user.name }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+
+        <hr>
+
+        <a href="/change_password" class="btn btn-warning">
+            🔒 Change Password
+        </a>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+
+<div class="login-wrapper">
+
+<div class="login-card">
+
+<div class="login-header">
+<h2>🧠 Emotional Diary</h2>
+<p>Track your feelings. Understand yourself.</p>
+</div>
+
+<form method="POST">
+
+<div class="form-group">
+<input type="email" name="email" placeholder="Email Address" required>
+</div>
+
+<div class="form-group password-box">
+<input type="password" id="password" name="password" placeholder="Password" required>
+<span class="eye-icon" onclick="togglePassword()">👁</span>
+</div>
+
+<button class="login-btn">Login</button>
+
+</form>
+
+<!-- CREATE ACCOUNT LINK (NOW INSIDE CARD) -->
+<div class="register-section">
+<p>Don't have an account?</p>
+<a href="{{ url_for('register') }}">Create Account</a>
+</div>
+
+<p class="secure-text">Secure login for your Emotional Diary</p>
+
+</div>
+</div>
+
+<style>
+
+/* Background */
+
+.login-wrapper{
+height:90vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:linear-gradient(135deg,#5f6ad4,#7b2cbf);
+}
+
+/* Card */
+
+.login-card{
+background:white;
+padding:40px;
+border-radius:20px;
+width:400px;
+box-shadow:0 15px 40px rgba(0,0,0,0.2);
+text-align:center;
+animation:fadeIn 0.8s ease;
+}
+
+/* Header */
+
+.login-header h2{
+color:#5f6ad4;
+margin-bottom:5px;
+}
+
+.login-header p{
+color:#666;
+font-size:14px;
+margin-bottom:25px;
+}
+
+/* Inputs */
+
+.form-group{
+margin-bottom:18px;
+position:relative;
+}
+
+.form-group input{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:1px solid #ddd;
+font-size:14px;
+}
+
+.form-group input:focus{
+outline:none;
+border-color:#5f6ad4;
+box-shadow:0 0 5px rgba(95,106,212,0.3);
+}
+
+/* Password Eye */
+
+.password-box{
+display:flex;
+align-items:center;
+}
+
+.eye-icon{
+position:absolute;
+right:12px;
+cursor:pointer;
+}
+
+/* Button */
+
+.login-btn{
+width:100%;
+padding:12px;
+border:none;
+border-radius:10px;
+background:linear-gradient(135deg,#5f6ad4,#7b2cbf);
+color:white;
+font-size:16px;
+cursor:pointer;
+transition:0.3s;
+}
+
+.login-btn:hover{
+transform:translateY(-2px);
+box-shadow:0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Register Section */
+
+.register-section{
+margin-top:18px;
+}
+
+.register-section p{
+font-size:14px;
+color:#555;
+margin-bottom:3px;
+}
+
+.register-section a{
+color:#5f6ad4;
+font-weight:600;
+text-decoration:none;
+}
+
+.register-section a:hover{
+text-decoration:underline;
+}
+
+/* Footer text */
+
+.secure-text{
+margin-top:20px;
+font-size:12px;
+color:#888;
+}
+
+/* Animation */
+
+@keyframes fadeIn{
+from{
+opacity:0;
+transform:translateY(20px);
+}
+to{
+opacity:1;
+transform:translateY(0);
+}
+}
+
+</style>
+
+<script>
+
+function togglePassword(){
+let password = document.getElementById("password");
+
+if(password.type === "password"){
+password.type = "text";
+}else{
+password.type = "password";
+}
+}
+
+</script>
+
+{% endblock %}

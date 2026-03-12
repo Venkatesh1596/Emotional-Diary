@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}AI Chat{% endblock %}
+
+{% block content %}
+
+<div class="card p-4">
+
+<h4>🤖 AI Emotional Assistant</h4>
+
+<!-- CHAT BOX -->
+<div id="chatbox"
+style="height:400px; overflow-y:auto; border:1px solid #ddd; padding:15px; border-radius:10px; background:#f8f9fa;">
+
+{% for chat in chat_history %}
+
+<div class="text-end mb-2">
+<span class="badge bg-primary">You</span>
+<div class="p-2 bg-primary text-white rounded">
+{{ chat.user }}
+</div>
+</div>
+
+<div class="text-start mb-3">
+<span class="badge bg-secondary">AI</span>
+<div class="p-2 bg-light rounded border">
+{{ chat.bot }}
+</div>
+</div>
+
+{% endfor %}
+
+</div>  <!-- ✅ CLOSE CHATBOX HERE -->
+
+<!-- INPUT AREA (NOW BELOW CHATBOX) -->
+<div class="input-group mt-3">
+
+<input type="text"
+id="messageInput"
+class="form-control"
+placeholder="Type or speak your message...">
+
+<button class="btn btn-success" onclick="startVoice()">🎤 Speak</button>
+
+<button class="btn btn-primary" onclick="sendMessage()">Send</button>
+
+</div>
+
+<p id="typing" class="text-muted mt-2" style="display:none;">
+AI is typing...
+</p>
+
+</div>
+
+
+<script>
+
+function sendMessage(){
+
+let input = document.getElementById("messageInput");
+let message = input.value.trim();
+
+if(message === "") return;
+
+let chatbox = document.getElementById("chatbox");
+
+chatbox.innerHTML += `
+<div class="text-end mb-2">
+<span class="badge bg-primary">You</span>
+<div class="p-2 bg-primary text-white rounded">${message}</div>
+</div>
+`;
+
+document.getElementById("typing").style.display = "block";
+
+fetch("/chatbot",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({message:message})
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("typing").style.display = "none";
+
+chatbox.innerHTML += `
+<div class="text-start mb-3">
+<span class="badge bg-secondary">AI</span>
+<div class="p-2 bg-light border rounded">${data.reply}</div>
+</div>
+`;
+
+chatbox.scrollTop = chatbox.scrollHeight;
+
+// 🔊 AI Voice Reply
+let speech = new SpeechSynthesisUtterance(data.reply);
+speech.lang = "en-US";
+speech.rate = 1;
+speech.pitch = 1;
+
+speechSynthesis.speak(speech);
+
+});
+
+input.value="";
+}
+
+document.getElementById("messageInput")
+.addEventListener("keypress", function(e){
+if(e.key === "Enter"){
+sendMessage();
+}
+});
+
+</script>
+
+
+<script>
+function startVoice(){
+
+if(!('webkitSpeechRecognition' in window)){
+alert("Voice recognition not supported in this browser");
+return;
+}
+
+const recognition = new webkitSpeechRecognition();
+
+recognition.lang = "en-US";
+recognition.interimResults = false;
+recognition.maxAlternatives = 1;
+
+recognition.onresult = function(event){
+
+let text = event.results[0][0].transcript;
+
+document.getElementById("messageInput").value = text;
+
+};
+
+recognition.start();
+
+}
+</script>
+
+{% endblock %}

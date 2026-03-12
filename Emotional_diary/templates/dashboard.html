@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+
+<!-- Loader -->
+<div id="loader" class="text-center" style="padding:100px 0;">
+    <div class="spinner-border text-primary" style="width:4rem;height:4rem;"></div>
+    <p class="mt-3">Loading Analytics...</p>
+</div>
+
+<div id="dashboardContent" style="display:none;">
+
+<h2 class="mb-4 fw-bold text-center">🧠 Your Emotional Dashboard</h2>
+<p class="text-center text-muted">Track your mental wellness over time</p>
+
+<!-- TOP STATS -->
+<div class="row g-3 mb-4">
+
+<div class="col-lg-3 col-md-6 col-12">
+<div class="card shadow-sm border-0 p-3 text-center">
+<h6 class="text-muted">Emotional Health</h6>
+<h3 class="fw-bold">
+<span class="counter" data-target="{{ health_index }}">0</span>%
+</h3>
+</div>
+</div>
+
+<div class="col-lg-3 col-md-6 col-12">
+<div class="card shadow-sm border-0 p-3 text-center">
+<h6 class="text-muted">Current Streak</h6>
+<h3 class="fw-bold">
+<span class="counter" data-target="{{ current_streak }}">0</span> 🔥
+</h3>
+</div>
+</div>
+
+<div class="col-lg-3 col-md-6 col-12">
+<div class="card shadow-sm border-0 p-3 text-center">
+<h6 class="text-muted">Weekly Growth</h6>
+
+<h4>
+{% if weekly_growth > 0 %}
+📈 +{{ weekly_growth }}
+{% elif weekly_growth < 0 %}
+📉 {{ weekly_growth }}
+{% else %}
+➖ 0
+{% endif %}
+</h4>
+
+</div>
+</div>
+
+<div class="col-lg-3 col-md-6 col-12">
+<div class="card shadow-sm border-0 p-3 text-center">
+<h6 class="text-muted">Stability Score</h6>
+<h3 class="fw-bold counter" data-target="{{ stability_score }}">0</h3>
+</div>
+</div>
+
+</div>
+<div class="card p-4 mt-4">
+<h5>🧠 Top 3 Words From Your Diary</h5>
+
+<ul>
+{% for word, count in top_words %}
+<li><b>{{ word }}</b> ({{ count }})</li>
+{% endfor %}
+</ul>
+
+</div>
+
+<br>
+
+<!-- HEALTH INDEX -->
+<div class="card p-4 mb-4">
+<h5>🧠 Emotional Health Index</h5>
+
+<div class="progress mb-3" style="height:20px;">
+<div class="progress-bar bg-success"
+     id="healthBar"
+     role="progressbar"
+     aria-valuemin="0"
+     aria-valuemax="100"
+     style="width:0%">
+0%
+</div>
+</div>
+
+<p><strong>Stability Score:</strong> {{ stability_score }}%</p>
+<p><strong>Status:</strong> {{ risk_alert }}</p>
+
+</div>
+
+
+<!-- INSIGHTS -->
+<div class="row g-3 mb-4">
+
+<div class="col-lg-6 col-12">
+<div class="card shadow-sm border-0 p-4">
+<h6>📊 Insight Summary</h6>
+
+<p>{{ insight_message }}</p>
+
+<hr>
+
+<p>{{ trend_message }}</p>
+
+<hr>
+
+<strong>💡 Tip:</strong>
+<p>{{ personalized_tip }}</p>
+
+</div>
+</div>
+
+
+
+<div class="card shadow-sm border-0 p-4
+{% if risk_alert and 'High' in risk_alert %}
+border-danger
+{% elif risk_alert and 'Moderate' in risk_alert %}
+border-warning
+{% else %}
+border-success
+{% endif %}
+">
+
+<h6>⚠ Emotional Risk</h6>
+
+{% if risk_alert %}
+<p class="fw-bold">{{ risk_alert }}</p>
+{% else %}
+<p class="fw-bold text-muted">No emotional data yet. Start writing your first diary entry.</p>
+{% endif %}
+
+</div>
+</div>
+
+</div>
+
+<div class="card p-4 mt-4">
+
+<h5>📈 Mood Trend</h5>
+
+<p>{{ trend_message }}</p>
+
+<div class="progress">
+<div class="progress-bar bg-success"
+style="width: {{ health_index }}%">
+{{ health_index }}%
+</div>
+</div>
+
+</div>
+
+<br>
+
+<!-- CHARTS -->
+<div class="row g-3 mb-4">
+
+<div class="col-lg-6 col-12">
+<div class="card shadow-sm border-0 p-4">
+
+<h6 class="mb-3">Emotion Distribution</h6>
+
+<div style="height:300px">
+<canvas id="pieChart"></canvas>
+</div>
+
+</div>
+</div>
+
+
+<div class="col-lg-6 col-12">
+<div class="card shadow-sm border-0 p-4">
+
+<h6 class="mb-3">Entries Over Time</h6>
+
+<div style="height:300px">
+<canvas id="lineChart"></canvas>
+</div>
+
+</div>
+</div>
+
+</div>
+
+
+<!-- INTENSITY ANALYTICS -->
+<div class="card p-4 mb-4">
+
+<h5>🔥 Intensity Analytics</h5>
+
+<p><strong>Average Intensity:</strong> {{ average_intensity }}%</p>
+
+<p><strong>Intensity Level:</strong> {{ intensity_level }}</p>
+
+<p><strong>High Emotional Spikes:</strong> {{ high_spike_count }}</p>
+
+</div>
+
+
+<div class="card p-4 mt-4">
+
+<h5>🏆 Achievements</h5>
+
+<div class="d-flex flex-wrap gap-2 mt-3">
+
+{% for badge in badges %}
+
+<span class="badge bg-primary p-2">{{ badge }}</span>
+
+{% endfor %}
+
+</div>
+
+</div>
+
+<br>
+
+<!-- TIMELINE -->
+<div class="card p-4 mb-4">
+
+<h5>📈 Emotion Timeline</h5>
+
+<div style="height:300px">
+<canvas id="timelineChart"></canvas>
+</div>
+
+</div>
+
+<div class="card shadow-sm border-0 p-4 mt-4">
+
+<h5 class="mb-3">📅 Emotion Calendar</h5>
+
+<p class="text-muted small">
+View your emotions recorded throughout the month.
+</p>
+
+<div id="calendar"></div>
+
+</div>
+
+<br>
+
+<!-- DOWNLOAD -->
+<div class="text-center mb-5">
+
+<a href="{{ url_for('download_report') }}" class="btn btn-primary">
+
+📥 Download Monthly Report
+
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+
+<style>
+
+#calendar{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 5px 20px rgba(0,0,0,0.08);
+}
+
+.fc-toolbar-title{
+    font-size:22px;
+    font-weight:600;
+}
+
+.fc-button{
+    background:#5E60CE !important;
+    border:none !important;
+    border-radius:8px !important;
+}
+
+.fc-button:hover{
+    background:#4a4cd3 !important;
+}
+
+.fc-daygrid-day-number{
+    font-weight:600;
+}
+
+.fc-daygrid-event{
+    font-size:12px;
+}
+
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+new Chart(document.getElementById('pieChart'),{
+type:'pie',
+data:{
+labels: {{ emotions | tojson }},
+datasets:[{
+data: {{ counts | tojson }},
+backgroundColor:["#5E60CE","#4CAF50","#FFC107","#FF5722","#9C27B0"]
+}]
+},
+options:{responsive:true,maintainAspectRatio:false}
+});
+
+</script>
+
+
+<script>
+
+new Chart(document.getElementById('lineChart'),{
+type:'line',
+data:{
+labels: {{ dates | tojson }},
+datasets:[{
+label:'Entries',
+data: {{ entries | tojson }},
+borderColor:"#5E60CE",
+backgroundColor:"rgba(94,96,206,0.1)",
+fill:true,
+tension:0.4
+}]
+},
+options:{responsive:true,maintainAspectRatio:false}
+});
+
+</script>
+
+
+<script>
+
+new Chart(document.getElementById('timelineChart'),{
+type:'line',
+data:{
+labels: {{ timeline_dates|tojson }},
+datasets:[
+{label:'Happy',data: {{ happy_counts|tojson }},borderColor:'green',fill:false},
+{label:'Sad',data: {{ sad_counts|tojson }},borderColor:'blue',fill:false},
+{label:'Angry',data: {{ angry_counts|tojson }},borderColor:'red',fill:false},
+{label:'Fear',data: {{ fear_counts|tojson }},borderColor:'orange',fill:false},
+{label:'Neutral',data: {{ neutral_counts|tojson }},borderColor:'gray',fill:false}
+]
+},
+options:{responsive:true,maintainAspectRatio:false}
+});
+
+</script>
+
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const bar = document.getElementById("healthBar");
+
+    let target = parseInt("{{ health_index }}") || 0;
+
+    let width = 0;
+
+    const interval = setInterval(function () {
+
+        if (width >= target) {
+
+            clearInterval(interval);
+
+        } else {
+
+            width++;
+
+            bar.style.width = width + "%";
+
+            bar.innerText = width + "%";
+
+        }
+
+    }, 20);
+
+});
+
+</script>
+
+<script>
+
+const counters=document.querySelectorAll('.counter');
+
+counters.forEach(counter=>{
+
+counter.innerText='0';
+
+const updateCounter=()=>{
+
+const target=+counter.getAttribute('data-target');
+const current=+counter.innerText;
+
+const increment=target/100;
+
+if(current<target){
+
+counter.innerText=Math.ceil(current+increment);
+setTimeout(updateCounter,20);
+
+}
+
+else{
+
+counter.innerText=target;
+
+}
+
+};
+
+updateCounter();
+
+});
+
+</script>
+
+
+<script>
+
+window.addEventListener("load",function(){
+
+setTimeout(function(){
+
+document.getElementById("loader").style.display="none";
+document.getElementById("dashboardContent").style.display="block";
+
+},1000);
+
+});
+
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    var calendarEl = document.getElementById('calendar');
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+
+        initialView: 'dayGridMonth',
+        height: 520,
+
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: ''
+        },
+
+        events: "/emotion-data",
+
+        eventDidMount: function(info) {
+
+            let emotion = info.event.title;
+
+            const colors = {
+                "Happy": "#4CAF50",
+                "Sad": "#2196F3",
+                "Angry": "#F44336",
+                "Fear": "#9C27B0",
+                "Neutral": "#FFC107"
+            };
+
+            const emojis = {
+                "Happy": "😊",
+                "Sad": "😔",
+                "Angry": "😠",
+                "Fear": "😟",
+                "Neutral": "😐"
+            };
+
+            info.el.style.backgroundColor = colors[emotion] || "#888";
+            info.el.style.border = "none";
+            info.el.style.borderRadius = "8px";
+            info.el.style.padding = "3px";
+
+            info.el.innerHTML = emojis[emotion] + " " + emotion;
+        }
+
+    });
+
+    calendar.render();
+
+});
+</script>
+
+
+
+{% endblock %}
