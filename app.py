@@ -168,7 +168,7 @@ def get_db():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        password=os.getenv("DB_PASSWORD", "1234"),
+        password="1234",
         database="emotional_diary"
     )
 
@@ -988,6 +988,6 @@ def emotion_data():
 
     return jsonify(events)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
-
+ 
