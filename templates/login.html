@@ -12,8 +12,8 @@
 <p>Track your feelings. Understand yourself.</p>
 </div>
 
-<form method="POST">
-
+<form method="POST" action="{{ url_for('login') }}">
+    
 <div class="form-group">
 <input type="email" name="email" placeholder="Email Address" required>
 </div>
