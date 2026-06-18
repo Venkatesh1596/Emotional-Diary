@@ -1,0 +1,55 @@
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #f8f9fa;
+}
+
+/* Cards */
+.card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+}
+
+/* Buttons */
+.btn-primary {
+    background: #5E60CE;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #4a4db3;
+}
+
+/* Forms */
+input, textarea {
+    border-radius: 10px !important;
+}
+
+textarea {
+    min-height: 120px;
+}
+
+/* Dashboard cards hover */
+.card:hover {
+    transform: translateY(-3px);
+    transition: 0.3s ease;
+}
+
+/* Chat UI */
+.message {
+    padding: 10px 15px;
+    border-radius: 20px;
+    max-width: 70%;
+    margin-bottom: 10px;
+}
+
+.user {
+    background: #5E60CE;
+    color: white;
+    margin-left: auto;
+}
+
+.bot {
+    background: #e9ecef;
+    color: black;
+}

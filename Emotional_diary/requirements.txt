@@ -1,0 +1,8 @@
+Flask
+matplotlib
+mysql-connector-python
+reportlab
+nltk
+wordcloud
+scikit-learn
+werkzeug

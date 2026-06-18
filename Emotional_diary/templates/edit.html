@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Diary</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+
+        body{
+            background:#f5f7fb;
+        }
+
+        .edit-card{
+            max-width:700px;
+            margin:auto;
+            margin-top:60px;
+            border-radius:12px;
+        }
+
+        textarea{
+            height:180px;
+            resize:none;
+        }
+
+        .emotion-box{
+            padding:10px;
+            border-radius:8px;
+            background:#eef2ff;
+        }
+
+        .suggestion-box{
+            padding:10px;
+            border-radius:8px;
+            background:#e8f8f5;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card shadow edit-card">
+
+<div class="card-header text-center bg-primary text-white">
+<h4>✏ Edit Diary Entry</h4>
+</div>
+
+<div class="card-body p-4">
+
+<!-- Emotion Info -->
+<div class="mb-3 emotion-box">
+<strong>Current Emotion:</strong> {{ diary.emotion }}
+</div>
+
+<div class="mb-3 suggestion-box">
+<strong>AI Suggestion:</strong> {{ diary.suggestion }}
+</div>
+
+<form method="POST">
+
+<div class="mb-3">
+<label class="form-label"><b>Title</b></label>
+
+<input type="text"
+class="form-control"
+name="title"
+value="{{ diary.title }}"
+required>
+</div>
+
+<div class="mb-3">
+<label class="form-label"><b>Your Thoughts</b></label>
+
+<textarea
+class="form-control"
+name="content"
+required>{{ diary.content }}</textarea>
+</div>
+
+<div class="d-flex justify-content-between">
+
+<a href="{{ url_for('history') }}" class="btn btn-secondary">
+⬅ Back
+</a>
+
+<button type="submit" class="btn btn-primary">
+💾 Update Diary
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+</div>
+
+</div>
+
+</body>
+</html>
