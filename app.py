@@ -31,11 +31,32 @@ nltk_path = os.path.expanduser("~/nltk_data")
 if os.path.exists(nltk_path):
     nltk.data.path.append(nltk_path)
 
-lemmatizer = WordNetLemmatizer()
 try:
     stop_words = set(stopwords.words("english"))
-except:
-    stop_words = set()
+except LookupError:
+    try:
+        nltk.download("stopwords")
+        stop_words = set(stopwords.words("english"))
+    except Exception:
+        stop_words = set()
+
+try:
+    nltk.data.find("corpora/wordnet")
+except LookupError:
+    try:
+        nltk.download("wordnet")
+    except Exception:
+        pass
+
+try:
+    nltk.data.find("corpora/omw-1.4")
+except LookupError:
+    try:
+        nltk.download("omw-1.4")
+    except Exception:
+        pass
+
+lemmatizer = WordNetLemmatizer()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev_secret")
@@ -58,11 +79,17 @@ def login_required(f):
 
 
 def preprocess_text(text):
-    text = text.lower()
+    text = str(text).lower()
     text = re.sub(r'[^a-zA-Z\s]', '', text)
     words = text.split()
-    words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
-    return " ".join(words)
+    processed_words = []
+    for word in words:
+        if word not in stop_words:
+            try:
+                processed_words.append(lemmatizer.lemmatize(word))
+            except Exception:
+                processed_words.append(word)
+    return " ".join(processed_words)
 
 def detect_emotion(text):
     processed = preprocess_text(text)
@@ -425,8 +452,6 @@ def dashboard():
     heatmap_dict = {str(row[0]): row[1] for row in heatmap_data}
 
     # ---------- WEEKLY GROWTH ----------
-    from datetime import datetime, timedelta
-
     today = datetime.today().date()
     start_of_week = today - timedelta(days=today.weekday())
     start_of_last_week = start_of_week - timedelta(days=7)
@@ -514,8 +539,6 @@ LIMIT 14
             trend_message = "➖ Your mood is Stable."
 
     # ---------- STREAK CALCULATION ----------
-    from datetime import datetime, timedelta
-
     cursor.execute("""
     SELECT DATE(created_at)
     FROM diary
@@ -757,8 +780,6 @@ SELECT emotion FROM diary WHERE user_id=%s
 
 
 # ---------- AI CHATBOT ----------
-from flask import jsonify
-# ---------- AI CHATBOT ----------
 @app.route('/chat', methods=['GET'])
 @login_required
 def chat_page():
@@ -769,13 +790,12 @@ def chat_page():
 @app.route("/chatbot", methods=["POST"])
 @login_required
 def chatbot():
-
     data = request.get_json(silent=True) or {}
-    user_message = data.get("message") or request.form.get("message", "")
+    user_message = (data.get("message") or request.form.get("message", "")).strip()
 
     if not user_message:
         return jsonify({
-            "reply": "Please type a message.",
+            "reply": "Please enter a message.",
             "emotion": "Neutral",
             "confidence": 0
         })
