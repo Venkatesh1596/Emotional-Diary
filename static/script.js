@@ -1,6 +1,10 @@
 async function saveDiary() {
-    const title = document.getElementById("title").value;
-    const content = document.getElementById("content").value;
+    const titleEl = document.getElementById("title");
+    const contentEl = document.getElementById("content");
+    if (!titleEl || !contentEl) return;
+
+    const title = titleEl.value;
+    const content = contentEl.value;
 
     await fetch('/save_diary', {
         method: 'POST',
@@ -12,15 +16,24 @@ async function saveDiary() {
 }
 
 async function loadDiaries() {
-    const res = await fetch('/get_diaries');
-    const diaries = await res.json();
-
     const diaryList = document.getElementById("diaryList");
-    diaryList.innerHTML = "";
+    if (!diaryList) return;
 
-    diaries.forEach(d => {
-        diaryList.innerHTML += `<h3>${d.title}</h3><p>${d.content}</p><hr>`;
-    });
+    try {
+        const res = await fetch('/get_diaries');
+        if (!res.ok) return;
+        const diaries = await res.json();
+
+        diaryList.innerHTML = "";
+        diaries.forEach(d => {
+            diaryList.innerHTML += `<h3>${d.title}</h3><p>${d.content}</p><hr>`;
+        });
+    } catch (err) {
+        console.error("Error loading diaries:", err);
+    }
 }
 
-window.onload = loadDiaries;
+if (document.getElementById("diaryList")) {
+    window.onload = loadDiaries;
+}
+

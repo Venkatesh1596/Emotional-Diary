@@ -6,10 +6,13 @@ import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import pickle
-from datetime import datetime
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import io
 import base64
+import os
+import html
+import re
 
 
 # PDF imports
@@ -17,21 +20,24 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 
-import re
-
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
 from wordcloud import WordCloud
 
-nltk.data.path.append("C:/Users/venkatesh/nltk_data")  # optional if needed
+# Portable NLTK data path
+nltk_path = os.path.expanduser("~/nltk_data")
+if os.path.exists(nltk_path):
+    nltk.data.path.append(nltk_path)
 
 lemmatizer = WordNetLemmatizer()
-stop_words = set(stopwords.words("english"))
+try:
+    stop_words = set(stopwords.words("english"))
+except:
+    stop_words = set()
 
 app = Flask(__name__)
-import os
 app.secret_key = os.getenv("SECRET_KEY", "dev_secret")
 
 # ---------- LOAD ML MODEL ----------
@@ -50,9 +56,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-
-lemmatizer = WordNetLemmatizer()
-stop_words = set(stopwords.words('english'))
 
 def preprocess_text(text):
     text = text.lower()
@@ -82,7 +85,8 @@ def generate_suggestion(emotion):
         "Positive": "You seem to be doing well. Stay consistent and keep growing.",
         "Neutral": "Take some time to reflect and do something you enjoy today.",
         "Sad": "It’s okay to feel sad. Consider talking to someone you trust.",
-        "Angry": "Try deep breathing exercises or take a short walk to calm down."
+        "Angry": "Try deep breathing exercises or take a short walk to calm down.",
+        "Fear": "Feeling anxious or afraid is okay. Take a moment to breathe and focus on what you can control."
     }
     return suggestions.get(emotion, "Take care of yourself and stay mindful.")
 
@@ -111,15 +115,17 @@ def advanced_recommendation(emotions, counts, weekly_growth):
 
     return "Maintain balance and continue reflecting daily."
 
-from datetime import datetime, timedelta
-
-def calculate_streak(user_id):
-    conn = mysql.connector.connect(
+# ---------- DATABASE CONNECTION ----------
+def get_db():
+    return mysql.connector.connect(
         host="localhost",
         user="root",
         password="1234",
         database="emotional_diary"
     )
+
+def calculate_streak(user_id):
+    conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
@@ -162,15 +168,6 @@ def calculate_streak(user_id):
 
     return current_streak, longest_streak
 
-
-# ---------- DATABASE CONNECTION ----------
-def get_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="1234",
-        database="emotional_diary"
-    )
 
 
 # ---------- LOGIN ----------
@@ -234,12 +231,7 @@ def register():
 def profile():
     user_id = session["user_id"]
 
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="1234",
-        database="emotional_diary"
-    )
+    conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("SELECT name, email FROM users WHERE id=%s", (user_id,))
@@ -258,12 +250,7 @@ def change_password():
         new_password = request.form["password"]
         hashed_password = generate_password_hash(new_password)
 
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="1234",
-            database="emotional_diary"
-        )
+        conn = get_db()
         cursor = conn.cursor()
 
         cursor.execute("UPDATE users SET password=%s WHERE id=%s",
@@ -289,8 +276,19 @@ def home():
 @app.route('/save_diary', methods=['POST'])
 @login_required
 def save_diary():
-    title = request.form['title']
-    content = request.form['content']
+    if request.is_json:
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        content = data.get('content', '')
+    else:
+        title = request.form.get('title', '')
+        content = request.form.get('content', '')
+
+    if not title or not content:
+        if request.is_json:
+            return jsonify({"error": "Title and content are required"}), 400
+        flash("Title and content are required!", "danger")
+        return redirect(url_for('home'))
 
     # IMPORTANT: unpack both values
     emotion, confidence, intensity = detect_emotion(content)
@@ -312,8 +310,12 @@ def save_diary():
     cursor.close()
     db.close()
 
+    if request.is_json:
+        return jsonify({"message": "Diary Saved Successfully!", "emotion": emotion, "suggestion": suggestion})
+
     flash("Diary Saved Successfully!", "success")
     return redirect(url_for('home'))
+
 
 
 # ---------- EDIT DIARY ----------
@@ -586,33 +588,7 @@ LIMIT 14
 # If no badge
     if not badges:
         badges.append("Keep writing to unlock badges!")
-    
-    
-    
-    # Split into last 7 and previous 7
-        last_7 = recent_entries[:7]
-        prev_7 = recent_entries[7:14]
 
-        last_7_emotions = [row[0] for row in last_7]
-        prev_7_emotions = [row[0] for row in prev_7]
-
-        def negative_ratio(emotions):
-            if not emotions:
-                return 0
-            negative = emotions.count("Sad") + emotions.count("Angry")
-            return negative / len(emotions)
-
-        last_ratio = negative_ratio(last_7_emotions)
-        prev_ratio = negative_ratio(prev_7_emotions)
-
-        if last_ratio < prev_ratio:
-            trend_message = "📈 Your mood trend is Improving."
-        elif last_ratio > prev_ratio:
-            trend_message = "📉 Your mood trend is Declining."
-        else:
-            trend_message = "➖ Your mood is Stable."
-    
-    
 # ---------- ADVANCED EMOTION INSIGHTS ----------
     insight_message = "No sufficient data to generate insights."
     risk_alert = None
@@ -628,9 +604,9 @@ LIMIT 14
     # Dominant emotion
         dominant_emotion = max(emotion_distribution, key=emotion_distribution.get)
 
-    # Stability Score (how balanced emotions are)
+    # Stability Score (how balanced emotions are across 5 emotion types)
         unique_emotions = len(emotion_distribution)
-        stability_score = round((unique_emotions / 4) * 100, 2)
+        stability_score = min(100.0, round((unique_emotions / 5.0) * 100, 2))
 
         insight_message = f"Your dominant emotion is {dominant_emotion}."
 
@@ -782,9 +758,7 @@ SELECT emotion FROM diary WHERE user_id=%s
 
 # ---------- AI CHATBOT ----------
 from flask import jsonify
-import os
-
-
+# ---------- AI CHATBOT ----------
 @app.route('/chat', methods=['GET'])
 @login_required
 def chat_page():
@@ -793,10 +767,18 @@ def chat_page():
 
 
 @app.route("/chatbot", methods=["POST"])
+@login_required
 def chatbot():
 
-    data = request.get_json()
-    user_message = data.get("message", "")
+    data = request.get_json(silent=True) or {}
+    user_message = data.get("message") or request.form.get("message", "")
+
+    if not user_message:
+        return jsonify({
+            "reply": "Please type a message.",
+            "emotion": "Neutral",
+            "confidence": 0
+        })
 
     # Detect emotion using your ML model
     emotion, confidence, intensity = detect_emotion(user_message)
@@ -812,6 +794,13 @@ def chatbot():
     }
 
     reply = replies.get(emotion, "I'm here to listen. Tell me more about how you're feeling.")
+
+    # Save to chat history session
+    if "chat_history" not in session or not isinstance(session["chat_history"], list):
+        session["chat_history"] = []
+
+    session["chat_history"].append({"user": user_message, "bot": reply})
+    session.modified = True
 
     return jsonify({
         "reply": reply,
@@ -838,6 +827,28 @@ def history():
     db.close()
 
     return render_template('history.html', diaries=diaries)
+
+
+@app.route('/get_diaries', methods=['GET'])
+@login_required
+def get_diaries():
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT * FROM diary WHERE user_id=%s ORDER BY created_at DESC",
+        (session['user_id'],)
+    )
+
+    diaries = cursor.fetchall()
+    cursor.close()
+    db.close()
+
+    for d in diaries:
+        if d.get('created_at'):
+            d['created_at'] = str(d['created_at'])
+
+    return jsonify(diaries)
 
 
 # ---------- DOWNLOAD MONTHLY REPORT ----------
@@ -900,12 +911,13 @@ def download_report():
     elements.append(Paragraph("Monthly Mental Wellness Report", styles['Title']))
     elements.append(Spacer(1, 20))
 
-    elements.append(Paragraph(f"User: {session['user_name']}", styles['Normal']))
+    user_name_escaped = html.escape(str(session.get('user_name', 'User')))
+    elements.append(Paragraph(f"User: {user_name_escaped}", styles['Normal']))
     elements.append(Paragraph(f"Month: {datetime.now().strftime('%B %Y')}", styles['Normal']))
     elements.append(Spacer(1, 20))
 
     elements.append(Paragraph(f"Total Diary Entries: {total_entries}", styles['Heading3']))
-    elements.append(Paragraph(f"Dominant Emotion: {dominant_emotion}", styles['Heading3']))
+    elements.append(Paragraph(f"Dominant Emotion: {html.escape(str(dominant_emotion))}", styles['Heading3']))
     elements.append(Paragraph(f"Mental Health Score: {health_score}/100", styles['Heading3']))
 
     elements.append(Spacer(1, 20))
@@ -916,7 +928,7 @@ def download_report():
         table_data = [["Emotion", "Count"]]
 
         for row in emotion_data:
-            table_data.append([row[0], str(row[1])])
+            table_data.append([html.escape(str(row[0])), str(row[1])])
 
         table = Table(table_data)
 
@@ -940,7 +952,7 @@ def download_report():
         suggestion = "Practice breathing exercises and stress management techniques."
 
     elements.append(Paragraph("AI Wellness Insight", styles['Heading2']))
-    elements.append(Paragraph(suggestion, styles['Normal']))
+    elements.append(Paragraph(html.escape(suggestion), styles['Normal']))
 
     doc.build(elements)
 
